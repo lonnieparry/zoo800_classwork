@@ -46,6 +46,7 @@ ggplot(hellbender_data, aes(x = Year, y = Population)) +
   ) +
   theme_minimal(base_size = 14)
 
+
 ###OBJECTIVE 2###
 
 set.seed(123)
@@ -94,3 +95,59 @@ ggplot() +
     y = "Population Size"
   ) +
   theme_minimal(base_size = 14)
+geom_hline(yintercept = target_pop, linetype = "dashed", color = "red", size = 1) +
+  labs(
+    title = "Hellbender Population Growth with Target Population",
+    x = "Year",
+    y = "Population Size"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+###OBJECTIVE 3###
+
+target_pop<-800
+
+ggplot() +
+  geom_line(data = sim_df_long, aes(x = Year, y = Population, group = Simulation),
+            color = "skyblue", alpha = 0.4) +
+  geom_line(data = hellbender_data, aes(x = Year, y = Population),
+            color = "darkgreen", size = 1.5) +
+  geom_point(data = hellbender_data, aes(x = Year, y = Population),
+             color = "darkgreen", size = 2) +
+  geom_hline(yintercept = target_pop, linetype = "dashed", color = "red", size = 1) +
+  labs(
+    title = "Hellbender Population Growth with Target Population",
+    x = "Year",
+    y = "Population Size"
+  ) +
+  theme_minimal(base_size = 14)
+
+###PART B###
+set.seed(123)
+
+# Parameters
+r_mean <- 0.2
+r_sd <- 0.03
+K <- 1000
+N0 <- 50
+years <- 25
+n_sim <- 50
+
+# Matrix to store simulations
+sim_matrix <- matrix(NA, nrow = years + 1, ncol = n_sim)
+sim_matrix[1, ] <- N0
+
+# Loop over each simulation
+for (sim in 1:n_sim) {
+  r <- rnorm(1, mean = r_mean, sd = r_sd)
+  for (t in 1:years) {
+    sim_matrix[t + 1, sim] <- sim_matrix[t, sim] + r * sim_matrix[t, sim] * (1 - sim_matrix[t, sim] / K)
+  }
+}
+
+# Extract population at year 25
+pop_25 <- sim_matrix[years + 1, ]
+
+# Target population
+target_pop <- 0.8 * K  # 80% of K
