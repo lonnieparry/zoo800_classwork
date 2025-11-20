@@ -5,20 +5,31 @@
 
 ###A###
 set.seed(123)
-#define my constants
+
+# define constants
 alpha <- 20      
 beta  <- 8       
 sigma <- 15
-#get my data, making sure it is between -100 and 100
+
+# get predictor variable (x)
 x <- runif(100, min = 0, max = 10)
-#generate random errors
+
+# generate random error
 error <- rnorm(100, mean = 0, sd = sigma)
-#generate y
+
+# generate response variable (y)
 y <- alpha + beta * x + error
+
+# check range of y
 range(y)
-linearplot(x, y, main = "Simulated Linear Relationship",
-     xlab = "x (Predictor)", ylab = "y (Response)",
+
+# scatterplot of the simulated relationship
+plot(x, y,
+     main = "Simulated Linear Relationship",
+     xlab = "x (Predictor)",
+     ylab = "y (Response)",
      pch = 19, col = "blue")
+abline(lm(y ~ x), col = "red", lwd = 2)  # adds regression line
 
 ###B###
 
@@ -47,7 +58,7 @@ ggplot(sigma_data, aes(x = x, y = y)) +
 
 #### OBJECTIVE 2####
 
-###A###
+###A and B are kind of combined.
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -56,3 +67,56 @@ probabilities <- c(0.55, 0.6, 0.65)
 n_range <- 1:20
 n_sims <- 5000             # number of simulated experiments per (n,p) (reduce/increase as desired)
 alpha_level <- 0.05
+
+# Precompute one-sided exact p-value lookup tables for each n (p0 = 0.5)
+one_sided_pvals_table <- function(n, p0 = 0.5) {
+  ks <- 0:n
+  tail_probs <- sapply(ks, function(k) {
+    if (k == 0) {
+      1.0
+    } else {
+      1 - pbinom(k - 1, size = n, prob = p0)
+    }
+  })
+  # named vector indexed by k (0..n)
+  names(tail_probs) <- as.character(0:n)
+  return(tail_probs)
+}
+
+# Run simulations
+results_list <- list()
+for (ptrue in probabilities) {
+  for (n in n_range) {
+    # simulate counts of heads for n_sims experiments
+    counts <- rbinom(n_sims, size = n, prob = ptrue)
+    ptab <- one_sided_pvals_table(n, p0 = 0.5)
+    pvals <- ptab[as.character(counts)]
+    prop_sig <- mean(pvals < alpha_level)           
+    out_of_100 <- prop_sig * 100                    
+    results_list[[length(results_list) + 1]] <- data.frame(
+      ptrue = ptrue,
+      n = n,
+      prop_sig = prop_sig,
+      out_of_100 = out_of_100
+    )
+  }
+}
+df <- bind_rows(results_list)
+
+# Plot with ggplot
+df_plot <- df %>% mutate(ptrue_f = factor(ptrue, levels = probabilities, labels = paste0("p = ", probabilities)))
+
+ggplot(df_plot, aes(x = n, y = out_of_100, color = ptrue_f)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = n_range) +
+  labs(
+    x = "Number of flips (n)",
+    y = "Expected # of significant detections out of 100",
+    color = "True p",
+    title = "Power to detect Don Corleone's loaded coin (one-sided test: H0: p=0.5 vs Ha: p>0.5)",
+    subtitle = paste0("Simulated (n_sims = ", n_sims, ") — alpha = ", alpha_level)
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+
